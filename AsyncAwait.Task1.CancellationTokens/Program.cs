@@ -8,6 +8,8 @@
 */
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace AsyncAwait.Task1.CancellationTokens;
 
@@ -17,7 +19,7 @@ internal class Program
     /// The Main method should not be changed at all.
     /// </summary>
     /// <param name="args"></param>
-    private static void Main(string[] args)
+    private static async Task Main(string[] args)
     {
         Console.WriteLine("Mentoring program L2. Async/await.V1. Task 1");
         Console.WriteLine("Calculating the sum of integers from 0 to N.");
@@ -31,7 +33,7 @@ internal class Program
         {
             if (int.TryParse(input, out var n))
             {
-                CalculateSum(n);
+                await CalculateSumAsync(n);
             }
             else
             {
@@ -46,16 +48,37 @@ internal class Program
         Console.ReadLine();
     }
 
-    private static void CalculateSum(int n)
+    private static async Task CalculateSumAsync(int n)
     {
         // todo: make calculation asynchronous
-        var sum = Calculator.Calculate(n);
-        Console.WriteLine($"Sum for {n} = {sum}.");
-        Console.WriteLine();
-        Console.WriteLine("Enter N: ");
-        // todo: add code to process cancellation and uncomment this line    
-        // Console.WriteLine($"Sum for {n} cancelled...");
-
+        using var cts = new CancellationTokenSource();
         Console.WriteLine($"The task for {n} started... Enter N to cancel the request:");
+
+        try
+        {
+            var sumTask = Calculator.CalculateAsync(n, cts.Token);
+
+            while (!Console.KeyAvailable)
+            {
+                if (int.TryParse(Console.ReadLine(), out var newN))
+                {
+                    cts.Cancel();
+                    await sumTask; // Ensure the previous calculation is finished before starting a new one.
+                    //Console.WriteLine($"Sum for {n} = {sumTask.Result}.");
+                    //Console.WriteLine();
+                    await CalculateSumAsync(newN);
+                    return;
+                }
+                else
+                {
+                    Console.WriteLine($"Invalid integer. Please try again or press 'q' to exit.");
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // todo: add code to process cancellation and uncomment this line
+            Console.WriteLine($"Sum for {n} cancelled...");
+        }
     }
 }
